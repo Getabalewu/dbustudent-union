@@ -9,19 +9,27 @@ import {
   BarChart3,
   Plus,
   Trash2,
+  UserPlus,
+  Search,
+  Filter,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { mockElections } from "../../data/mockData";
 import toast from "react-hot-toast";
 
-export  function Elections() {
+export function Elections() {
   const { user } = useAuth();
   const [selectedTab, setSelectedTab] = useState("all");
   const [selectedElection, setSelectedElection] = useState(null);
   const [elections, setElections] = useState(mockElections);
   const [votedElections, setVotedElections] = useState(new Set());
   const [showNewElectionForm, setShowNewElectionForm] = useState(false);
+  const [showVoterRegistration, setShowVoterRegistration] = useState(false);
+  const [selectedElectionForVoters, setSelectedElectionForVoters] = useState(null);
+  const [voterSearchTerm, setVoterSearchTerm] = useState("");
+  const [registeredVoters, setRegisteredVoters] = useState({});
+
   const [newElection, setNewElection] = useState({
     title: '',
     description: '',
@@ -30,8 +38,29 @@ export  function Elections() {
     candidates: []
   });
 
+  const [newCandidate, setNewCandidate] = useState({
+    name: '',
+    position: '',
+    platform: '',
+    profileImage: ''
+  });
+
+  const [mockStudents] = useState([
+    { id: 'student_1', name: 'John Doe', email: 'john@dbu.edu.et', studentId: 'DBU-2021-001' },
+    { id: 'student_2', name: 'Jane Smith', email: 'jane@dbu.edu.et', studentId: 'DBU-2021-002' },
+    { id: 'student_3', name: 'Mike Johnson', email: 'mike@dbu.edu.et', studentId: 'DBU-2021-003' },
+    { id: 'student_4', name: 'Sarah Wilson', email: 'sarah@dbu.edu.et', studentId: 'DBU-2021-004' },
+    { id: 'student_5', name: 'David Brown', email: 'david@dbu.edu.et', studentId: 'DBU-2021-005' },
+  ]);
+
   const filteredElections = elections.filter(
     (election) => selectedTab === "all" || election.status === selectedTab
+  );
+
+  const filteredStudents = mockStudents.filter(student =>
+    student.name.toLowerCase().includes(voterSearchTerm.toLowerCase()) ||
+    student.email.toLowerCase().includes(voterSearchTerm.toLowerCase()) ||
+    student.studentId.toLowerCase().includes(voterSearchTerm.toLowerCase())
   );
 
   const getStatusColor = (status) => {
@@ -68,6 +97,13 @@ export  function Elections() {
 
     if (votedElections.has(electionId)) {
       toast.error("You have already voted in this election");
+      return;
+    }
+
+    // Check if user is registered for this election
+    const electionVoters = registeredVoters[electionId] || [];
+    if (!electionVoters.includes(user.id)) {
+      toast.error("You are not registered to vote in this election");
       return;
     }
 
@@ -114,6 +150,30 @@ export  function Elections() {
     toast.success("Election created successfully!");
   };
 
+  const handleAddCandidate = (electionId) => {
+    if (!newCandidate.name || !newCandidate.position) {
+      toast.error("Please fill all candidate fields");
+      return;
+    }
+
+    const candidate = {
+      id: Date.now().toString(),
+      ...newCandidate,
+      votes: 0,
+      platform: newCandidate.platform.split(',').map(p => p.trim()),
+      profileImage: newCandidate.profileImage || 'https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&w=400'
+    };
+
+    setElections(elections.map(election => 
+      election.id === electionId 
+        ? { ...election, candidates: [...election.candidates, candidate] }
+        : election
+    ));
+
+    setNewCandidate({ name: '', position: '', platform: '', profileImage: '' });
+    toast.success("Candidate added successfully!");
+  };
+
   const handleDeleteElection = (electionId) => {
     if (!user?.isAdmin) {
       toast.error("Only admins can delete elections");
@@ -122,6 +182,21 @@ export  function Elections() {
     
     setElections(elections.filter(election => election.id !== electionId));
     toast.success("Election deleted successfully!");
+  };
+
+  const handleRegisterVoter = (electionId, studentId) => {
+    const currentVoters = registeredVoters[electionId] || [];
+    if (currentVoters.includes(studentId)) {
+      toast.error("Student is already registered for this election");
+      return;
+    }
+
+    setRegisteredVoters({
+      ...registeredVoters,
+      [electionId]: [...currentVoters, studentId]
+    });
+
+    toast.success("Student registered successfully!");
   };
 
   const announceResults = (electionId) => {
@@ -140,6 +215,7 @@ export  function Elections() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -162,15 +238,24 @@ export  function Elections() {
         {/* Admin Controls */}
         {user?.isAdmin && (
           <div className="mb-8 bg-white rounded-xl p-6 shadow-sm">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-900">Admin Controls</h2>
-              <button
-                onClick={() => setShowNewElectionForm(!showNewElectionForm)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create New Election
-              </button>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowVoterRegistration(true)}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Register Voters
+                </button>
+                <button
+                  onClick={() => setShowNewElectionForm(!showNewElectionForm)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Election
+                </button>
+              </div>
             </div>
 
             {showNewElectionForm && (
@@ -302,7 +387,7 @@ export  function Elections() {
                     {election.totalVotes.toLocaleString()}
                   </p>
                   <p className="text-xs text-gray-500">
-                    of {election.eligibleVoters.toLocaleString()} eligible
+                    Registered: {(registeredVoters[election.id] || []).length}
                   </p>
                 </div>
 
@@ -326,7 +411,7 @@ export  function Elections() {
               {election.candidates.length > 0 && (
                 <div className="mb-4">
                   <h4 className="text-sm font-medium text-gray-900 mb-3">
-                    Candidates
+                    Candidates ({election.candidates.length})
                   </h4>
                   <div className="flex -space-x-2">
                     {election.candidates.slice(0, 3).map((candidate) => (
@@ -337,7 +422,55 @@ export  function Elections() {
                         className="w-8 h-8 rounded-full border-2 border-white object-cover"
                       />
                     ))}
+                    {election.candidates.length > 3 && (
+                      <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">
+                        +{election.candidates.length - 3}
+                      </div>
+                    )}
                   </div>
+                </div>
+              )}
+
+              {/* Admin Candidate Management */}
+              {user?.isAdmin && (
+                <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                  <h5 className="text-sm font-medium text-gray-900 mb-2">Add Candidate</h5>
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <input
+                      type="text"
+                      placeholder="Name"
+                      value={newCandidate.name}
+                      onChange={(e) => setNewCandidate({...newCandidate, name: e.target.value})}
+                      className="px-3 py-1 border border-gray-300 rounded text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Position"
+                      value={newCandidate.position}
+                      onChange={(e) => setNewCandidate({...newCandidate, position: e.target.value})}
+                      className="px-3 py-1 border border-gray-300 rounded text-sm"
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Platform (comma separated)"
+                    value={newCandidate.platform}
+                    onChange={(e) => setNewCandidate({...newCandidate, platform: e.target.value})}
+                    className="w-full px-3 py-1 border border-gray-300 rounded text-sm mb-2"
+                  />
+                  <input
+                    type="url"
+                    placeholder="Profile Image URL"
+                    value={newCandidate.profileImage}
+                    onChange={(e) => setNewCandidate({...newCandidate, profileImage: e.target.value})}
+                    className="w-full px-3 py-1 border border-gray-300 rounded text-sm mb-2"
+                  />
+                  <button
+                    onClick={() => handleAddCandidate(election.id)}
+                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
+                  >
+                    Add Candidate
+                  </button>
                 </div>
               )}
 
@@ -464,6 +597,106 @@ export  function Elections() {
                       </motion.button>
                     </div>
                   ))}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Voter Registration Modal */}
+        {showVoterRegistration && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">
+                    Register Voters for Elections
+                  </h2>
+                  <button
+                    onClick={() => setShowVoterRegistration(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Elections List */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Election</h3>
+                    <div className="space-y-3">
+                      {elections.filter(e => e.status !== 'completed').map((election) => (
+                        <div
+                          key={election.id}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedElectionForVoters === election.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => setSelectedElectionForVoters(election.id)}
+                        >
+                          <h4 className="font-medium text-gray-900">{election.title}</h4>
+                          <p className="text-sm text-gray-600">
+                            Registered: {(registeredVoters[election.id] || []).length} voters
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Students List */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">Students</h3>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <input
+                          type="text"
+                          placeholder="Search students..."
+                          value={voterSearchTerm}
+                          onChange={(e) => setVoterSearchTerm(e.target.value)}
+                          className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {filteredStudents.map((student) => {
+                        const isRegistered = selectedElectionForVoters && 
+                          (registeredVoters[selectedElectionForVoters] || []).includes(student.id);
+                        
+                        return (
+                          <div
+                            key={student.id}
+                            className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
+                          >
+                            <div>
+                              <h4 className="font-medium text-gray-900">{student.name}</h4>
+                              <p className="text-sm text-gray-600">{student.email}</p>
+                              <p className="text-xs text-gray-500">{student.studentId}</p>
+                            </div>
+                            <button
+                              onClick={() => selectedElectionForVoters && handleRegisterVoter(selectedElectionForVoters, student.id)}
+                              disabled={!selectedElectionForVoters || isRegistered}
+                              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                                isRegistered
+                                  ? 'bg-green-100 text-green-800 cursor-not-allowed'
+                                  : selectedElectionForVoters
+                                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              }`}
+                            >
+                              {isRegistered ? 'Registered' : 'Register'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>

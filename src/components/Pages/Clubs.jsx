@@ -1,21 +1,34 @@
 import React, { useState } from 'react';
-import { Users, Calendar, Award, Search, Filter, Plus } from 'lucide-react';
+import { Users, Calendar, Award, Search, Filter, Plus, Video, Play, Trash2, Clock, UserPlus } from 'lucide-react';
 import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { mockClubs } from "../../data/mockData";
 import toast from "react-hot-toast";
 
-export  function Clubs() {
+export function Clubs() {
   const { user } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [clubs, setClubs] = useState(mockClubs);
   const [showNewClubForm, setShowNewClubForm] = useState(false);
+  const [showLiveStream, setShowLiveStream] = useState(false);
+  const [selectedClubForStream, setSelectedClubForStream] = useState(null);
+  const [liveStreams, setLiveStreams] = useState({});
+  const [joinRequests, setJoinRequests] = useState({});
+
   const [newClub, setNewClub] = useState({
     name: '',
     category: 'Academic',
     description: '',
-    image: ''
+    image: '',
+    video: ''
+  });
+
+  const [streamSettings, setStreamSettings] = useState({
+    title: '',
+    description: '',
+    duration: 60,
+    scheduledTime: ''
   });
 
   const categories = ['All', 'Academic', 'Sports', 'Cultural', 'Technology', 'Service', 'Arts'];
@@ -32,7 +45,40 @@ export  function Clubs() {
       toast.error("Please login to join clubs");
       return;
     }
-    toast.success("Successfully joined the club!");
+
+    // Add to join requests
+    setJoinRequests(prev => ({
+      ...prev,
+      [clubId]: [...(prev[clubId] || []), {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        requestedAt: new Date()
+      }]
+    }));
+
+    toast.success("Join request sent! Waiting for admin approval.");
+  };
+
+  const handleApproveJoinRequest = (clubId, userId) => {
+    if (!user?.isAdmin) {
+      toast.error("Only admins can approve join requests");
+      return;
+    }
+
+    // Remove from requests and add to club members
+    setJoinRequests(prev => ({
+      ...prev,
+      [clubId]: (prev[clubId] || []).filter(req => req.id !== userId)
+    }));
+
+    setClubs(clubs.map(club => 
+      club.id === clubId 
+        ? { ...club, members: club.members + 1 }
+        : club
+    ));
+
+    toast.success("Member approved successfully!");
   };
 
   const handleCreateClub = (e) => {
@@ -53,7 +99,7 @@ export  function Clubs() {
     };
 
     setClubs([...clubs, club]);
-    setNewClub({ name: '', category: 'Academic', description: '', image: '' });
+    setNewClub({ name: '', category: 'Academic', description: '', image: '', video: '' });
     setShowNewClubForm(false);
     toast.success("Club created successfully!");
   };
@@ -66,6 +112,61 @@ export  function Clubs() {
     
     setClubs(clubs.filter(club => club.id !== clubId));
     toast.success("Club deleted successfully!");
+  };
+
+  const handleStartLiveStream = (clubId) => {
+    if (!user?.isAdmin) {
+      toast.error("Only admins can start live streams");
+      return;
+    }
+
+    if (!streamSettings.title || !streamSettings.duration) {
+      toast.error("Please fill all stream settings");
+      return;
+    }
+
+    const streamId = `stream_${Date.now()}`;
+    const stream = {
+      id: streamId,
+      clubId,
+      ...streamSettings,
+      startTime: new Date(),
+      endTime: new Date(Date.now() + streamSettings.duration * 60000),
+      isLive: true,
+      viewers: 0
+    };
+
+    setLiveStreams(prev => ({
+      ...prev,
+      [clubId]: stream
+    }));
+
+    setShowLiveStream(false);
+    setStreamSettings({ title: '', description: '', duration: 60, scheduledTime: '' });
+    toast.success("Live stream started!");
+
+    // Auto-end stream after duration
+    setTimeout(() => {
+      setLiveStreams(prev => ({
+        ...prev,
+        [clubId]: { ...prev[clubId], isLive: false }
+      }));
+      toast.info("Live stream ended");
+    }, streamSettings.duration * 60000);
+  };
+
+  const handleEndLiveStream = (clubId) => {
+    if (!user?.isAdmin) {
+      toast.error("Only admins can end live streams");
+      return;
+    }
+
+    setLiveStreams(prev => ({
+      ...prev,
+      [clubId]: { ...prev[clubId], isLive: false }
+    }));
+
+    toast.success("Live stream ended");
   };
 
   return (
@@ -92,15 +193,24 @@ export  function Clubs() {
         {/* Admin Controls */}
         {user?.isAdmin && (
           <div className="mb-8 bg-white rounded-xl p-6 shadow-sm">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-900">Admin Controls</h2>
-              <button
-                onClick={() => setShowNewClubForm(!showNewClubForm)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create New Club
-              </button>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowLiveStream(true)}
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center"
+                >
+                  <Video className="w-4 h-4 mr-2" />
+                  Start Live Stream
+                </button>
+                <button
+                  onClick={() => setShowNewClubForm(!showNewClubForm)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create New Club
+                </button>
+              </div>
             </div>
 
             {showNewClubForm && (
@@ -135,7 +245,14 @@ export  function Clubs() {
                   placeholder="Club Image URL (optional)"
                   value={newClub.image}
                   onChange={(e) => setNewClub({...newClub, image: e.target.value})}
-                  className="md:col-span-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  type="url"
+                  placeholder="Club Video URL (optional)"
+                  value={newClub.video}
+                  onChange={(e) => setNewClub({...newClub, video: e.target.value})}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
                 <div className="md:col-span-2 flex gap-4">
                   <button
@@ -153,6 +270,44 @@ export  function Clubs() {
                   </button>
                 </div>
               </form>
+            )}
+
+            {/* Join Requests Management */}
+            {Object.keys(joinRequests).length > 0 && (
+              <div className="mt-6 p-4 bg-yellow-50 rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Pending Join Requests</h3>
+                <div className="space-y-3">
+                  {Object.entries(joinRequests).map(([clubId, requests]) => {
+                    const club = clubs.find(c => c.id === clubId);
+                    return requests.map(request => (
+                      <div key={`${clubId}-${request.id}`} className="flex items-center justify-between bg-white p-3 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">{request.name}</p>
+                          <p className="text-sm text-gray-600">wants to join {club?.name}</p>
+                          <p className="text-xs text-gray-500">{request.requestedAt.toLocaleDateString()}</p>
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleApproveJoinRequest(clubId, request.id)}
+                            className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => setJoinRequests(prev => ({
+                              ...prev,
+                              [clubId]: prev[clubId].filter(req => req.id !== request.id)
+                            }))}
+                            className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition-colors"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    ));
+                  })}
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -218,13 +373,51 @@ export  function Clubs() {
                     {club.category}
                   </span>
                 </div>
+                
+                {/* Live Stream Indicator */}
+                {liveStreams[club.id]?.isLive && (
+                  <div className="absolute top-4 right-4 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center">
+                    <div className="w-2 h-2 bg-white rounded-full mr-1 animate-pulse"></div>
+                    LIVE
+                  </div>
+                )}
+
+                {/* Video Play Button */}
+                {club.video && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <button className="bg-black bg-opacity-50 text-white p-3 rounded-full hover:bg-opacity-70 transition-all">
+                      <Play className="w-6 h-6" />
+                    </button>
+                  </div>
+                )}
+
                 {user?.isAdmin && (
-                  <button
-                    onClick={() => handleDeleteClub(club.id)}
-                    className="absolute top-4 right-4 bg-red-600 text-white p-2 rounded-full hover:bg-red-700 transition-colors"
-                  >
-                    ✕
-                  </button>
+                  <div className="absolute top-4 right-4 flex space-x-2">
+                    {liveStreams[club.id]?.isLive ? (
+                      <button
+                        onClick={() => handleEndLiveStream(club.id)}
+                        className="bg-red-600 text-white p-2 rounded-full hover:bg-red-700 transition-colors"
+                      >
+                        <Video className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setSelectedClubForStream(club.id);
+                          setShowLiveStream(true);
+                        }}
+                        className="bg-green-600 text-white p-2 rounded-full hover:bg-green-700 transition-colors"
+                      >
+                        <Video className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteClub(club.id)}
+                      className="bg-red-600 text-white p-2 rounded-full hover:bg-red-700 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 )}
               </div>
               
@@ -242,6 +435,25 @@ export  function Clubs() {
                   {club.description}
                 </p>
 
+                {/* Live Stream Info */}
+                {liveStreams[club.id] && (
+                  <div className="mb-4 p-3 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-red-800">{liveStreams[club.id].title}</p>
+                        <p className="text-sm text-red-600">
+                          {liveStreams[club.id].isLive ? 'Live Now' : 'Stream Ended'}
+                        </p>
+                      </div>
+                      {liveStreams[club.id].isLive && (
+                        <button className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition-colors">
+                          Join Live
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Stats */}
                 <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                   <div className="flex items-center">
@@ -252,13 +464,19 @@ export  function Clubs() {
                     <Calendar className="w-4 h-4 mr-1" />
                     <span>{club.events} events/year</span>
                   </div>
+                  {joinRequests[club.id]?.length > 0 && (
+                    <div className="flex items-center">
+                      <UserPlus className="w-4 h-4 mr-1" />
+                      <span>{joinRequests[club.id].length} pending</span>
+                    </div>
+                  )}
                 </div>
                 
                 <button 
                   onClick={() => handleJoinClub(club.id)}
                   className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
                 >
-                  Join Club
+                  Request to Join
                 </button>
               </div>
             </div>
@@ -284,6 +502,89 @@ export  function Clubs() {
             >
               Clear filters
             </button>
+          </div>
+        )}
+
+        {/* Live Stream Setup Modal */}
+        {showLiveStream && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-2xl max-w-md w-full"
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">
+                    Start Live Stream
+                  </h2>
+                  <button
+                    onClick={() => setShowLiveStream(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Stream Title
+                    </label>
+                    <input
+                      type="text"
+                      value={streamSettings.title}
+                      onChange={(e) => setStreamSettings({...streamSettings, title: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter stream title"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      value={streamSettings.description}
+                      onChange={(e) => setStreamSettings({...streamSettings, description: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      rows="3"
+                      placeholder="Stream description"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Duration (minutes)
+                    </label>
+                    <input
+                      type="number"
+                      value={streamSettings.duration}
+                      onChange={(e) => setStreamSettings({...streamSettings, duration: parseInt(e.target.value)})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      min="1"
+                      max="180"
+                    />
+                  </div>
+
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      onClick={() => setShowLiveStream(false)}
+                      className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleStartLiveStream(selectedClubForStream)}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                    >
+                      Start Stream
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
         )}
 

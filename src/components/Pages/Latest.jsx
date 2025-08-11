@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Upload, X, Image as ImageIcon } from "lucide-react";
 import toast from "react-hot-toast";
 
-export  function Latest() {
+export function Latest() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("news");
   const [posts, setPosts] = useState([
@@ -15,7 +15,7 @@ export  function Latest() {
       date: "2023-10-15",
       content:
         "The new student lounge in Block B will officially open next Monday with free coffee for all students.",
-      image: null,
+      image: "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800",
       category: "Campus",
     },
     {
@@ -27,7 +27,7 @@ export  function Latest() {
         "Join us for our annual cultural festival featuring performances, food, and traditional exhibitions.",
       location: "Main Auditorium",
       time: "3:00 PM",
-      image: null,
+      image: "https://images.pexels.com/photos/1190297/pexels-photo-1190297.jpeg?auto=compress&cs=tinysrgb&w=800",
     },
     {
       id: 3,
@@ -53,12 +53,18 @@ export  function Latest() {
   });
 
   const [imagePreview, setImagePreview] = useState(null);
+  const [showImageUpload, setShowImageUpload] = useState(false);
 
   const filteredPosts = posts.filter((post) => post.type === activeTab);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast.error("Image size should be less than 5MB");
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -68,9 +74,18 @@ export  function Latest() {
     }
   };
 
+  const handleImageUrl = (url) => {
+    if (url) {
+      setImagePreview(url);
+      setNewPost({ ...newPost, image: url });
+      setShowImageUpload(false);
+    }
+  };
+
   const removeImage = () => {
     setImagePreview(null);
     setNewPost({ ...newPost, image: null });
+    setShowImageUpload(false);
   };
 
   const handleSubmit = (e) => {
@@ -101,6 +116,7 @@ export  function Latest() {
       time: "",
     });
     setImagePreview(null);
+    setShowImageUpload(false);
     toast.success("Post created successfully!");
   };
 
@@ -116,7 +132,7 @@ export  function Latest() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-gray-100">
-      {/* Main Container */}
+      {/* Header */}
       <section className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -125,7 +141,7 @@ export  function Latest() {
             transition={{ duration: 0.8 }}
             className="text-center"
           >
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">Our Latest</h1>
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">Latest Updates</h1>
             <p className="text-xl md:text-2xl text-blue-100 max-w-4xl mx-auto">
               Stay updated with the latest news, events, and announcements from
               the Student Union of Debre Berhan University
@@ -137,33 +153,33 @@ export  function Latest() {
       <div className="container mx-auto py-8 px-4 max-w-6xl">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Tabs Navigation */}
-          <div className="flex border-b">
+          <div className="flex border-b bg-gray-50">
             <button
               onClick={() => setActiveTab("news")}
-              className={`px-6 py-4 font-medium text-lg flex-1 text-center ${
+              className={`px-6 py-4 font-medium text-lg flex-1 text-center transition-all ${
                 activeTab === "news"
-                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
-                  : "text-gray-600 hover:bg-gray-50"
+                  ? "text-blue-600 border-b-2 border-blue-600 bg-white"
+                  : "text-gray-600 hover:bg-gray-100"
               }`}
             >
               📰 News
             </button>
             <button
               onClick={() => setActiveTab("event")}
-              className={`px-6 py-4 font-medium text-lg flex-1 text-center ${
+              className={`px-6 py-4 font-medium text-lg flex-1 text-center transition-all ${
                 activeTab === "event"
-                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
-                  : "text-gray-600 hover:bg-gray-50"
+                  ? "text-blue-600 border-b-2 border-blue-600 bg-white"
+                  : "text-gray-600 hover:bg-gray-100"
               }`}
             >
               📅 Events
             </button>
             <button
               onClick={() => setActiveTab("announcement")}
-              className={`px-6 py-4 font-medium text-lg flex-1 text-center ${
+              className={`px-6 py-4 font-medium text-lg flex-1 text-center transition-all ${
                 activeTab === "announcement"
-                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
-                  : "text-gray-600 hover:bg-gray-50"
+                  ? "text-blue-600 border-b-2 border-blue-600 bg-white"
+                  : "text-gray-600 hover:bg-gray-100"
               }`}
             >
               📢 Announcements
@@ -211,7 +227,7 @@ export  function Latest() {
 
               {/* Admin Panel */}
               {user?.isAdmin && (
-                <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                <div className="bg-gradient-to-br from-gray-50 to-blue-50 p-6 rounded-xl border border-gray-200">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-xl font-bold text-gray-800">
                       Create New Post
@@ -230,9 +246,9 @@ export  function Latest() {
                         <button
                           type="button"
                           onClick={() => setNewPost({ ...newPost, type: "news" })}
-                          className={`py-2 px-3 rounded-lg text-sm font-medium ${
+                          className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                             newPost.type === "news"
-                              ? "bg-blue-600 text-white"
+                              ? "bg-blue-600 text-white shadow-md"
                               : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                           }`}
                         >
@@ -243,9 +259,9 @@ export  function Latest() {
                           onClick={() =>
                             setNewPost({ ...newPost, type: "event" })
                           }
-                          className={`py-2 px-3 rounded-lg text-sm font-medium ${
+                          className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                             newPost.type === "event"
-                              ? "bg-blue-600 text-white"
+                              ? "bg-blue-600 text-white shadow-md"
                               : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                           }`}
                         >
@@ -256,9 +272,9 @@ export  function Latest() {
                           onClick={() =>
                             setNewPost({ ...newPost, type: "announcement" })
                           }
-                          className={`py-2 px-3 rounded-lg text-sm font-medium ${
+                          className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                             newPost.type === "announcement"
-                              ? "bg-blue-600 text-white"
+                              ? "bg-blue-600 text-white shadow-md"
                               : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                           }`}
                         >
@@ -277,7 +293,7 @@ export  function Latest() {
                         onChange={(e) =>
                           setNewPost({ ...newPost, title: e.target.value })
                         }
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         placeholder="Enter post title"
                         required
                       />
@@ -292,7 +308,7 @@ export  function Latest() {
                         onChange={(e) =>
                           setNewPost({ ...newPost, content: e.target.value })
                         }
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-32"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-32 transition-colors"
                         placeholder="Enter post content"
                         required
                       ></textarea>
@@ -308,7 +324,7 @@ export  function Latest() {
                         onChange={(e) =>
                           setNewPost({ ...newPost, date: e.target.value })
                         }
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         required
                       />
                     </div>
@@ -323,7 +339,7 @@ export  function Latest() {
                           onChange={(e) =>
                             setNewPost({ ...newPost, category: e.target.value })
                           }
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         >
                           <option value="General">General</option>
                           <option value="Campus">Campus</option>
@@ -346,7 +362,7 @@ export  function Latest() {
                             onChange={(e) =>
                               setNewPost({ ...newPost, location: e.target.value })
                             }
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                             placeholder="Event location"
                             required
                           />
@@ -361,7 +377,7 @@ export  function Latest() {
                             onChange={(e) =>
                               setNewPost({ ...newPost, time: e.target.value })
                             }
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                             placeholder="Event time"
                             required
                           />
@@ -392,53 +408,111 @@ export  function Latest() {
                       </div>
                     )}
 
+                    {/* Enhanced Image Upload Section */}
                     <div>
                       <label className="block text-gray-700 mb-2 font-medium">
                         Add Image
                       </label>
-                      <div className="flex items-start space-x-4">
-                        <div className="flex-1">
-                          <div className="flex items-center justify-center w-full">
-                            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                <div className="text-2xl text-gray-400 mb-2">☁️</div>
-                                <p className="text-sm text-gray-500">
-                                  <span className="font-semibold">
-                                    Click to upload
-                                  </span>{" "}
-                                  or drag and drop
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  PNG, JPG (MAX. 5MB)
-                                </p>
-                              </div>
-                              <input
-                                type="file"
-                                className="hidden"
-                                onChange={handleImageChange}
-                                accept="image/*"
-                              />
-                            </label>
-                          </div>
-                        </div>
-
-                        {imagePreview && (
-                          <div className="relative">
-                            <img
-                              src={imagePreview}
-                              alt="Preview"
-                              className="h-32 w-32 object-cover rounded-lg border border-gray-300"
-                            />
+                      
+                      {!imagePreview ? (
+                        <div className="space-y-3">
+                          <div className="flex gap-2">
                             <button
                               type="button"
-                              onClick={removeImage}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                              onClick={() => setShowImageUpload(!showImageUpload)}
+                              className="flex-1 bg-blue-100 text-blue-700 py-2 px-4 rounded-lg hover:bg-blue-200 transition-colors flex items-center justify-center"
                             >
-                              ✕
+                              <ImageIcon className="w-4 h-4 mr-2" />
+                              Add Image
                             </button>
                           </div>
-                        )}
-                      </div>
+
+                          {showImageUpload && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              className="space-y-3 p-4 bg-gray-50 rounded-lg"
+                            >
+                              {/* File Upload */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Upload from Device
+                                </label>
+                                <div className="flex items-center justify-center w-full">
+                                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-white hover:bg-gray-50 transition-colors">
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                                      <p className="text-sm text-gray-500">
+                                        <span className="font-semibold">Click to upload</span> or drag and drop
+                                      </p>
+                                      <p className="text-xs text-gray-500">PNG, JPG (MAX. 5MB)</p>
+                                    </div>
+                                    <input
+                                      type="file"
+                                      className="hidden"
+                                      onChange={handleImageChange}
+                                      accept="image/*"
+                                    />
+                                  </label>
+                                </div>
+                              </div>
+
+                              {/* URL Input */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Or Enter Image URL
+                                </label>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="url"
+                                    placeholder="https://example.com/image.jpg"
+                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    onKeyPress={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleImageUrl(e.target.value);
+                                      }
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      const input = e.target.previousElementSibling;
+                                      handleImageUrl(input.value);
+                                    }}
+                                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                                  >
+                                    Add
+                                  </button>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => setShowImageUpload(false)}
+                                className="w-full text-gray-600 hover:text-gray-800 py-2"
+                              >
+                                Cancel
+                              </button>
+                            </motion.div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-full h-48 object-cover rounded-lg border border-gray-300"
+                          />
+                          <button
+                            type="button"
+                            onClick={removeImage}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <button
@@ -464,17 +538,31 @@ export  function Latest() {
   );
 }
 
-// Post Card Component
+// Enhanced Post Card Component
 function PostCard({ post, onDelete, canDelete }) {
   return (
-    <div
-      className={`bg-white rounded-xl shadow-md overflow-hidden border ${
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`bg-white rounded-xl shadow-md overflow-hidden border transition-all hover:shadow-lg ${
         post.important ? "border-l-4 border-red-500" : "border-gray-200"
-      } transition-all hover:shadow-lg`}
+      }`}
     >
-      <div className="p-5">
+      {/* Image */}
+      {post.image && (
+        <div className="relative">
+          <img
+            src={post.image}
+            alt={post.title}
+            className="w-full h-64 object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+        </div>
+      )}
+
+      <div className="p-6">
         <div className="flex justify-between items-start mb-3">
-          <div className="flex items-center">
+          <div className="flex items-center flex-wrap gap-2">
             <span
               className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                 post.type === "news"
@@ -490,7 +578,7 @@ function PostCard({ post, onDelete, canDelete }) {
               </span>
             </span>
             {post.category && (
-              <span className="inline-flex items-center ml-2 px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
+              <span className="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
                 🏷️ {post.category}
               </span>
             )}
@@ -500,7 +588,7 @@ function PostCard({ post, onDelete, canDelete }) {
             {canDelete && (
               <button
                 onClick={() => onDelete(post.id)}
-                className="text-red-600 hover:text-red-700 p-1"
+                className="text-red-600 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -508,37 +596,31 @@ function PostCard({ post, onDelete, canDelete }) {
           </div>
         </div>
 
-        <h3 className="text-xl font-bold text-gray-900 mb-2">{post.title}</h3>
+        <h3 className="text-xl font-bold text-gray-900 mb-3">{post.title}</h3>
 
-        <p className="text-gray-600 mb-4">{post.content}</p>
-
-        {post.image && (
-          <div className="mb-4">
-            <div className="bg-gray-200 border-2 border-dashed rounded-xl w-full h-48 flex items-center justify-center text-gray-500">
-              🖼️ Image Placeholder
-            </div>
-          </div>
-        )}
+        <p className="text-gray-600 mb-4 leading-relaxed">{post.content}</p>
 
         {post.type === "event" && (
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-            <div className="flex items-center">
-              <div className="bg-blue-100 p-2 rounded-lg mr-3">
-                📍
+          <div className="bg-gradient-to-r from-blue-50 to-green-50 p-4 rounded-lg border border-blue-100 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="flex items-center">
+                <div className="bg-blue-100 p-2 rounded-lg mr-3">
+                  📍
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Location</p>
+                  <p className="font-medium text-gray-900">{post.location}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Location</p>
-                <p className="font-medium">{post.location}</p>
-              </div>
-            </div>
 
-            <div className="flex items-center mt-3">
-              <div className="bg-blue-100 p-2 rounded-lg mr-3">
-                🕐
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Time</p>
-                <p className="font-medium">{post.time}</p>
+              <div className="flex items-center">
+                <div className="bg-green-100 p-2 rounded-lg mr-3">
+                  🕐
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Time</p>
+                  <p className="font-medium text-gray-900">{post.time}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -553,23 +635,27 @@ function PostCard({ post, onDelete, canDelete }) {
           </div>
         )}
 
-        <div className="mt-4 flex justify-between items-center">
-          <div className="flex space-x-2">
-            <button className="text-gray-500 hover:text-blue-600">
-              📤
+        <div className="mt-6 flex justify-between items-center pt-4 border-t border-gray-100">
+          <div className="flex space-x-4">
+            <button className="text-gray-500 hover:text-blue-600 transition-colors flex items-center space-x-1">
+              <span>👍</span>
+              <span className="text-sm">Like</span>
             </button>
-            <button className="text-gray-500 hover:text-blue-600">
-              🔖
+            <button className="text-gray-500 hover:text-blue-600 transition-colors flex items-center space-x-1">
+              <span>📤</span>
+              <span className="text-sm">Share</span>
+            </button>
+            <button className="text-gray-500 hover:text-blue-600 transition-colors flex items-center space-x-1">
+              <span>🔖</span>
+              <span className="text-sm">Save</span>
             </button>
           </div>
-          <div className="text-gray-500 text-sm">
-            👁️ 245 views
+          <div className="text-gray-500 text-sm flex items-center">
+            <span>👁️</span>
+            <span className="ml-1">245 views</span>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
-
-
-
